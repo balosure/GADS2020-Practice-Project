@@ -1,0 +1,102 @@
+Implement Private Google Access and Cloud NAT
+
+Objectives
+In this lab, you learn how to perform the following tasks:
+
+- Configure a VM instance that doesn't have an external IP address
+- Connect to a VM instance using an Identity-Aware Proxy (IAP) tunnel
+- Enable Private Google Access on a subnet
+- Configure a Cloud NAT gateway
+- Verify access to public IP addresses of Google APIs and services and other connections to the internet.
+
+##1. Create the VM instance
+/* Create a VPC network "privatenet" with some firewall rules and a VM instance that has no external IP address, and connect to the instance using an IAP tunnel.
+
+gcloud compute networks create privatenet --subnet-mode=custom
+
+gcloud compute networks subnets create privatenet-us --network=privatenet --range=10.130.0.0/20 --region=us-central1
+
+gcloud compute firewall-rules create privatenet-allow-ssh --network privatenet --allow tcp:22 --source-ranges 35.235.240.0/20
+
+/* Create the VM instance with no public IP address
+gcloud compute instances create vm-internal --zone=us-central1-c --machine-type=n1-standard-1 --subnet=privatenet-us --no-address --maintenance-policy=MIGRATE --image=debian-9-stretch-v20200902 --image-project=debian-cloud 
+
+/* The output displays parameters of just created Virtual mchine instance with no External IP address
+
+/* SSH to vm-internal to test the IAP tunnel
+gcloud compute ssh vm-internal --zone us-central1-c --tunnel-through-iap
+
+
+/* Test the external connectivity of vm-internal by using:
+
+ping -c 2 www.google.com
+
+/* --- www.google.com ping statistics ---
+/* 2 packets transmitted, 0 received, 100% packet loss, time 1010ms
+/* The command did not work because vm-internal has no external IP address!
+exit 
+
+##2. Enable Private Google Access
+/* Create a Cloud Storage bucket to test access to Google APIs and services "my_bukt_gads20.
+gsutil mb gs://my_bukt_gads20
+
+/* Copy an image from a public Cloud Storage bucket to your own bucket.
+gsutil cp gs://cloud-training/gcpnet/private/access.svg gs://my_bukt_gads20
+
+ /* To confirm copied file
+gsutil ls gs://my_bukt_gads20
+
+/* In Cloud Shell, to try to copy the image from your bucket, run the following command
+gsutil cp gs://my_bukt_gads20/*.svg .
+
+/* To connect to vm-internal, run the following command
+gcloud compute ssh vm-internal --zone us-central1-c --tunnel-through-iap
+
+/* This should not work: vm-internal can only send traffic within the VPC network because Private Google Access is disabled (by default).
+/* Press Ctrl+C to stop the request.
+
+/* Enable Private Google Access
+gcloud compute networks subnets update privatenet-us --region=us-central1 --enable-private-ip-google-access
+
+/* Check result with this
+gcloud compute networks subnets describe privatenet-us --region=us-central1 --format="get(privateIpGoogleAccess)"
+
+/* Retry to copy, and the file will be copied now
+gsutil cp gs://my_bukt_gads20/*.svg .
+
+##2. Configure a Cloud NAT gateway to allow vm-internal to reach the internet.
+sudo apt-get update.
+
+/* Connect to vm-internal with the following command
+gcloud compute ssh vm-internal --zone us-central1-c --tunnel-through-iap
+
+
+/* To try to re-synchronize the package index of vm-internal, run the following command:
+sudo apt-get update
+
+/* This should only work for Google Cloud packages because vm-internal only has access to Google APIs and services!
+/* Press Ctrl+C to stop the request.
+
+
+/* Configure a Cloud NAT gateway. Cloud NAT is a regional resource. You can configure it to allow traffic from all ranges of all subnets in a region, from specific subnets in the region only, or from specific primary and secondary CIDR ranges only.
+
+gcloud compute routers create nat-router --network=privatenet --region=us-central1
+
+
+gcloud compute routers nats create nat-config --router=nat-router --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges --enable-logging --region=us-central1
+
+
+/* Verify the Cloud NAT gateway, NAT configuration to propagate to the VM. In Cloud Shell for vm-internal, to try to re-synchronize the package index of vm-internal, run the following command:
+
+sudo apt-get update
+
+/* This work because vm-internal is using the NAT gateway!
+
+##3. Configure and view logs with Cloud NAT Logging
+
+
+gcloud compute routers nats update nat-config --router=nat-router --region=us-central1 --enable-logging
+
+
+/* Viewing Logs
+gcloud logging read 'resource.type=nat_gateway' --limit=10 --format=json

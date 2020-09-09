@@ -1,0 +1,153 @@
+
+LAB: Google Cloud Fundamentals: Getting Started with Cloud Storage and Cloud SQL
+
+OBJECTIVES
+In this lab, you learn how to perform the following tasks:
+
+* Create a Cloud Storage bucket and place an image into it.
+* Create a Cloud SQL instance and configure it.
+* Connect to the Cloud SQL instance from a web server.
+* Use the image in the Cloud Storage bucket on a web page.
+
+STEPS: 
+
+##1: Deploy a web server VM instance
+
+gcloud compute instances create bloghost --machine-type "n1-standard-1" --image-project "debian-cloud" --image "debian-9-stretch-v20190213" --zone=us-central1-a  --subnet "default" --tags http --metadata startup-script=
+sudo apt-get update&&
+sudo apt-get install apache2 php php-mysql -y
+service apache2 restart
+
+/* Create a firewall rule to allow TCP on port 80
+gcloud compute firewall-rules create allow-http --allow=tcp:80 --direction=INGRESS
+
+##2: Create a Cloud Storage bucket using the gsutil command line
+
+/* Select location "US" into an environment variable called LOCATION
+export LOCATION=US
+
+/* Enter this command to make a bucket named after your project ID: amplified-ward-288418
+gsutil mb -l $LOCATION gs://amplified-ward-288418
+
+/* Retrieve a banner image from a publicly accessible Cloud Storage location:
+gsutil cp gs://cloud-training/gcpfci/my-excellent-blog.png my-excellent-blog.png
+
+/* Copy the banner image to your newly created Cloud Storage bucket:
+gsutil cp my-excellent-blog.png gs://amplified-ward-288418/my-excellent-blog.png
+
+/* Modify the Access Control List of the object created so that it is readable by everyone:
+gsutil acl ch -u allUsers:R gs://amplified-ward-288418/my-excellent-blog.png
+
+
+##3: Create the Cloud SQL instance
+gcloud sql instances create blog-db --database-version=MYSQL_5_7 --region=us-central1 --root-password=password123
+
+/* Add user "blogdbuser" to the database
+gcloud sql users create blogdbuser --instance=blog-db --password=password1234
+
+/* Add network  - add an IPv4 address to the instance
+gcloud sql instances patch blog-db --assign-ip
+
+/* Show all existing authorized addresses by describing the instance
+gcloud sql instances describe blog-db
+
+/* Update the authorized network list
+gcloud sql instances patch blog-db --authorized-networks=35.224.236.138/32
+
+/* confirm updadates / changes
+gcloud sql instances describe blog-db
+
+
+##4. Configure an application in a Compute Engine instance to use Cloud SQL
+
+/* Activate web server virtual machine "bloghost"
+gcloud compute ssh bloghost
+
+/* Working directory changed to the document root of the web server:
+cd /var/www/html
+
+/* nano text editor used to edit a file called index.php:
+sudo nano index.php
+
+/* Paste the content below into the file:
+
+<html>
+<head><title>Welcome to my excellent blog</title></head>
+<body>
+<h1>Welcome to my excellent blog</h1>
+<?php
+ $dbserver = "CLOUDSQLIP";
+$dbuser = "blogdbuser";
+$dbpassword = "DBPASSWORD";
+// In a production blog, we would not store the MySQL
+// password in the document root. Instead, we would store it in a
+// configuration file elsewhere on the web server VM instance.
+
+$conn = new mysqli($dbserver, $dbuser, $dbpassword);
+
+if (mysqli_connect_error()) {
+        echo ("Database connection failed: " . mysqli_connect_error());
+} else {
+        echo ("Database connection succeeded.");
+}
+?>
+</body></html>
+
+/* Ctrl+O - "Enter" to update edited file, Ctrl+X to exit the nano text editor. 
+
+/* to restart the web server.
+sudo service apache2 restart
+
+/* Open a new web browser tab and paste into the address bar your bloghost VM instance's external IP address followed by /index.php. The URL will look like this
+http://34.66.169.13/index.php
+
+/* "Database connection failed: ..." message will be displayed because the php is not configured to the cloud instance
+
+/* In the nano text editor, CLOUDSQLIP and DBPASSWORD replaced with the Cloud SQL instance Public IP address & Password. Ctrl+O - "Enter" to update edited file, Ctrl+X to exit the nano text editor. 
+
+/* Restart the web server:
+sudo service apache2 restart
+
+
+https://storage.googleapis.com/amplified-ward-288418/my-excellent-blog.png
+
+
+##5. Configure an application in a Compute Engine instance to use a Cloud Storage object
+
+gcloud beta compute ssh --zone "us-central1-a" "bloghost" --project "amplified-ward-288418"
+
+/* Set working directory to the document root of the web server
+cd /var/www/html
+
+/* Use nano editor to edit index
+sudo nano index.php
+
+/* Use the arrow keys to move the cursor to the line that contains the h1 element. Press Enter to open up a new, blank screen line, and then paste the URL you copied earlier into the line.
+
+/* This HTML markup immediately before the URL
+<img src='
+
+/* Place a closing single quotation mark and a closing angle bracket at the end of the URL:
+'>
+
+/* The resulting line will look like this:
+<img src='https://storage.googleapis.com/amplified-ward-288418/my-excellent-blog.png'>
+
+/* The effect of these steps is to place the line containing <img src='...'> immediately before the line containing <h1>...</h1>
+/* Ctrl+O - "Enter" to update edited file, Ctrl+X to exit the nano text editor. 
+
+/* we restart the web server
+sudo service apache2 restart
+
+/* Return to the web browser tab in which you opened your bloghost VM instance's external IP address. When you load the page, its content now includes a banner image
+
+
+////////////////////////////////////////////////////////////////////
+
+
+
+
+gcloud beta compute --project=qwiklabs-gcp-03-68dbc09e2306 instances create bloghost --zone=us-central1-a --machine-type=e2-medium --subnet=default --network-tier=PREMIUM --metadata=startup-script=apt-get\ update$'\n'apt-get\ install\ apache2\ php\ php-mysql\ -y$'\n'service\ apache2\ restart --maintenance-policy=MIGRATE --service-account=1082582072112-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/service.management.readonly,https://www.googleapis.com/auth/trace.append --tags=http-server --image=debian-9-stretch-v20200902 --image-project=debian-cloud --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name=bloghost --reservation-affinity=any
+
+gcloud compute --project=qwiklabs-gcp-03-68dbc09e2306 firewall-rules create default-allow-http --direction=INGRESS --priority=1000 --network=default --action=ALLOW --rules=tcp:80 --source-ranges=0.0.0.0/0 --target-tags=http-server
+
