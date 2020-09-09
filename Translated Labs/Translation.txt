@@ -1,0 +1,5 @@
+The concluding part of the practice project, this folder consist of 3 text files.
+i. Google Cloud Fundamentals: Getting Started with BigQuery
+ii. Google Cloud Fundamentals: Getting Started with Cloud Storage and Cloud SQL
+iii. Implement Private Google Access and Cloud NAT
+Its the translated codes from web interface to code.
