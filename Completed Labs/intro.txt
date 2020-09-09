@@ -1,2 +1,2 @@
 This is the first part of the the GADS 2020 Practice project for Google Cloud path.
-This folder contains screenshot of completed QuikLab.
+This folder contains screenshot of completed Qwiklabs email confirmation messages.
