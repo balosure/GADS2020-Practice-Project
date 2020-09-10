@@ -64,7 +64,7 @@ gcloud compute networks subnets describe privatenet-us --region=us-central1 --fo
 /* Retry to copy, and the file will be copied now
 gsutil cp gs://my_bukt_gads20/*.svg .
 
-##2. Configure a Cloud NAT gateway to allow vm-internal to reach the internet.
+##3. Configure a Cloud NAT gateway to allow vm-internal to reach the internet.
 sudo apt-get update.
 
 /* Connect to vm-internal with the following command
@@ -92,7 +92,7 @@ sudo apt-get update
 
 /* This work because vm-internal is using the NAT gateway!
 
-##3. Configure and view logs with Cloud NAT Logging
+##4. Configure and view logs with Cloud NAT Logging
 
 
 gcloud compute routers nats update nat-config --router=nat-router --region=us-central1 --enable-logging
